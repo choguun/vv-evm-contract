@@ -8,7 +8,7 @@ import {ERC721Enumerable} from "@openzeppelin/contracts/token/ERC721/extensions/
 contract Profile is ERC721, ERC721Enumerable, Ownable {  
     mapping(uint256 => string) public profileHandle; // tokenId => handle
     mapping(string => uint256) public handleToTokenId; // handle => tokenId
-    uint256 public price = 0.001 ether; // 0.001 ETH
+    uint256 public price = 0.0001 ether; // 0.0001 ETH
 
     constructor(address initialOwner) ERC721("Profile", "Profile") Ownable(initialOwner) {}
     
