@@ -7,11 +7,9 @@ import "./AIOracleCallbackReceiver.sol";
 contract NPC is AIOracleCallbackReceiver {
 
     event promptsUpdated(
-        uint256 requestId,
         uint256 modelId,
         string input,
-        string output,
-        bytes callbackData
+        string output
     );
 
     event promptRequest(
@@ -42,7 +40,7 @@ contract NPC is AIOracleCallbackReceiver {
     // modelId => callback gasLimit
     mapping(uint256 => uint64) public callbackGasLimit;
 
-    mapping(address => mapping(string => string)) public prompts;
+    mapping(uint256 => mapping(string => string)) public prompts;
 
     /// @notice Initialize the contract, binding it to a specified AIOracle.
     constructor(IAIOracle _aiOracle) AIOracleCallbackReceiver(_aiOracle) {
@@ -59,8 +57,13 @@ contract NPC is AIOracleCallbackReceiver {
         AIOracleRequest storage request = requests[requestId];
         require(request.sender != address(0), "request does not exist");
         request.output = output;
-        prompts[request.sender][string(request.input)] = string(output);
-        emit promptsUpdated(requestId, request.modelId, string(request.input), string(output), callbackData);
+        prompts[request.modelId][string(request.input)] = string(output);
+        emit promptsUpdated(request.modelId, string(request.input), string(output));
+    }
+    
+    function storeAIResult(uint256 modelId, bytes calldata input, bytes calldata output) external onlyAIOracleCallback() {
+        prompts[modelId][string(input)] = string(output);
+        emit promptsUpdated(modelId, string(input), string(output));
     }
 
     function estimateFee(uint256 modelId) public view returns (uint256) {
@@ -71,12 +74,12 @@ contract NPC is AIOracleCallbackReceiver {
         bytes memory input = bytes(prompt);
         // we do not need to set the callbackData in this example
         uint256 requestId = aiOracle.requestCallback{value: msg.value}(
-            llama, input, address(this), callbackGasLimit[llama], ""
+            llama, bytes(input), address(this), callbackGasLimit[llama], abi.encodePacked(bytes4(this.storeAIResult.selector))
         );
         emit promptRequest(requestId, msg.sender, llama, prompt);
     }
 
-    function getAIResult(string calldata prompt) external view returns (string memory) {
-        return prompts[msg.sender][prompt];
+    function getAIResult(uint256 modelId, string calldata prompt) external view returns (string memory) {
+        return prompts[modelId][prompt];
     }
 }

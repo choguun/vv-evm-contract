@@ -20,7 +20,7 @@
 2.Token - ERC20 In-game token https://sepolia.etherscan.io/address/0xe11c9fe8a69830d983e35a604d26da97f1e6977e \
 3.Item - ERC1155 game item https://sepolia.etherscan.io/address/0xf425beefe0fb21728203758de6fedfac73d0d79e \
 4.World - On-chain game logic https://sepolia.etherscan.io/address/0x7ebba474c0d83bb3fb5955b221640abaf825e125 \
-5.NPC - On-Chain AI NPC https://sepolia.etherscan.io/address/0x0a84a2be19881e50ecd6e8e9b82cf1fdc2e470c3 \
+5.NPC - On-Chain AI NPC https://sepolia.etherscan.io/address/0x408a15d92d15ec99f486bd7d990f1c7491a1cd90 \
 
 ### Screenshot
 ![GUI](/gui.png "GUI")
