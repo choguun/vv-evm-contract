@@ -11,6 +11,7 @@ async function main() {
   const item = await hre.viem.deployContract("Item", [owner, world.address, craft.address, ""]);
   const erc6551Account  = await hre.viem.deployContract("ERC6551Account");
   const erc6551Registry = await hre.viem.deployContract("ERC6551Registry");
+  const NPC = await hre.viem.deployContract("NPC", ["0x0A0f4321214BB6C7811dD8a71cF587bdaF03f0A0"]);
 
   await token.write.setWorld([world.address as `0x${string}`]);
   
@@ -34,6 +35,9 @@ async function main() {
   );
   console.log(
     `world address: ${world.address}`
+  )
+  console.log(
+    `NPC address: ${NPC.address}`
   )
 }
 
