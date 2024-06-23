@@ -15,5 +15,12 @@
 ### How it works:
 ![How it works](/howitwork.png "How it works")
 
+### Deployed Smart Contract
+1.Profile - NFT Profile to identify unique user https://sepolia.etherscan.io/address/0x3ae322b2ab6aff88bcd1da3a7662d111e31e82c5 \
+2.Token - ERC20 In-game token https://sepolia.etherscan.io/address/0xe11c9fe8a69830d983e35a604d26da97f1e6977e \
+3.Item - ERC1155 game item https://sepolia.etherscan.io/address/0xf425beefe0fb21728203758de6fedfac73d0d79e \
+4.World - On-chain game logic https://sepolia.etherscan.io/address/0x7ebba474c0d83bb3fb5955b221640abaf825e125 \
+5.NPC - On-Chain AI NPC https://sepolia.etherscan.io/address/0x0a84a2be19881e50ecd6e8e9b82cf1fdc2e470c3 \
+
 ### Screenshot
 ![GUI](/gui.png "GUI")
