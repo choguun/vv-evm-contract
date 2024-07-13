@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.24;
+pragma solidity ^0.8.7;
 
 contract Raffle {
     mapping(address => uint256) public lastParticipationTime;
@@ -16,7 +16,7 @@ contract Raffle {
 
         // Generate a pseudo-random number between 0 and 9
         uint256 randomSeed =
-            (uint256(keccak256(abi.encodePacked(block.timestamp, block.prevrandao, msg.sender))) % 10);
+            (uint256(keccak256(abi.encodePacked(block.timestamp, msg.sender))) % 10);
         emit RaffleEntered(msg.sender, randomSeed, calculateRaffleId(msg.sender, block.timestamp));
         return randomSeed;
     }

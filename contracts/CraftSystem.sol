@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.24;
+pragma solidity ^0.8.7;
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Item} from "./Item.sol";
@@ -33,7 +33,7 @@ contract CraftSystem is Ownable {
     address public world;
     address public item;
 
-    constructor(address _initialOwner, address _world) Ownable(_initialOwner) {
+    constructor(address _initialOwner, address _world) {
         world = _world;
     }
 

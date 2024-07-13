@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.24;
+pragma solidity ^0.8.7;
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {ERC1155} from "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
@@ -14,7 +14,6 @@ contract Item is ERC1155, Ownable {
 
     constructor(address _initialOwner, address _world, address _craft, string memory _itemURI) 
     ERC1155(_itemURI)
-    Ownable(_initialOwner)
     {
         world = _world;
         craft = _craft;

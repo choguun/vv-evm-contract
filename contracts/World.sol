@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.24;
+pragma solidity ^0.8.7;
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+// import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import {Profile} from "./Profile.sol";
 import {Token} from "./Token.sol";
 import {Item} from "./Item.sol";
 import {Raffle} from "./Raffle.sol";
 import {CraftSystem} from "./CraftSystem.sol";
-import {ERC6551Registry} from "./ERC6551Registry.sol";
+// import {ERC6551Registry} from "./ERC6551Registry.sol";
 
 contract World is Raffle, Ownable, ReentrancyGuard {
     // Data Structures
@@ -119,7 +120,7 @@ contract World is Raffle, Ownable, ReentrancyGuard {
     // Modifiers
 
     // constructor
-    constructor(address _initialOwner) Ownable(_initialOwner) {}
+    constructor(address _initialOwner) {}
 
     // Player functions
     function createPlayer(uint256 _tokenId) external onlyUser onlyTokenOwner(_tokenId) {
@@ -138,10 +139,10 @@ contract World is Raffle, Ownable, ReentrancyGuard {
 
     // Exchange functions
     function exchangeItem(uint256 _tokenId, uint256 _itemId) external onlyUser onlyTokenOwner(_tokenId) nonReentrant {
-        address tokenBoundAccount = _getTokenBoundAccount(_tokenId);
+        // address tokenBoundAccount = _getTokenBoundAccount(_tokenId);
         uint256 price = _getItemPrice(_itemId);
-        Token(token).burn(tokenBoundAccount, price);
-        Item(item).mint(tokenBoundAccount, _itemId, 1);
+        Token(token).burn(_msgSender(), price);
+        Item(item).mint(_msgSender(), _itemId, 1);
     }
 
     function _getItemPrice(uint256 _itemId) internal view returns (uint256) {
@@ -168,8 +169,8 @@ contract World is Raffle, Ownable, ReentrancyGuard {
     }
 
     function _distributeRewardandScore(uint256 _tokenId, uint256 _reward) internal {
-        address tokenBoundAccount = _getTokenBoundAccount(_tokenId);
-        Token(token).mint(tokenBoundAccount, _reward * DENOMINATOR);
+        // address tokenBoundAccount = _getTokenBoundAccount(_tokenId);
+        Token(token).mint(_msgSender(), _reward * DENOMINATOR);
         _addPlayerScore(_reward);
     }
 
@@ -200,8 +201,8 @@ contract World is Raffle, Ownable, ReentrancyGuard {
     }
 
     function _doCraft(uint256 _tokenId, uint256 _reward, uint256 _recipeId) internal {
-        address tokenBoundAccount = _getTokenBoundAccount(_tokenId);
-        (bool success, ) = CraftSystem(craft).craftItem(_recipeId, tokenBoundAccount);
+        // address tokenBoundAccount = _getTokenBoundAccount(_tokenId);
+        (bool success, ) = CraftSystem(craft).craftItem(_recipeId, _msgSender());
         if(success) {
             _distributeRewardandScore(_tokenId, _reward);
         }
@@ -236,9 +237,9 @@ contract World is Raffle, Ownable, ReentrancyGuard {
     // Quest functions
 
     // Helper functions
-    function _getTokenBoundAccount(uint256 _tokenId) internal view returns (address) {
-        return ERC6551Registry(registry).account(account, chainId, profile, _tokenId, 1);
-    }
+    // function _getTokenBoundAccount(uint256 _tokenId) internal view returns (address) {
+    //     return ERC6551Registry(registry).account(account, chainId, profile, _tokenId, 1);
+    // }
     // Helper functions
 
     // Admin functions

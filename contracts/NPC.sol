@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.24;
+pragma solidity ^0.8.7;
 
 import "./IAIOracle.sol";
 import "./AIOracleCallbackReceiver.sol";
@@ -76,6 +76,10 @@ contract NPC is AIOracleCallbackReceiver {
         uint256 requestId = aiOracle.requestCallback{value: msg.value}(
             llama, bytes(input), address(this), callbackGasLimit[llama], abi.encodePacked(bytes4(this.storeAIResult.selector))
         );
+        AIOracleRequest storage request = requests[requestId];
+        request.input = input;
+        request.sender = msg.sender;
+        request.modelId = llama;
         emit promptRequest(requestId, msg.sender, llama, prompt);
     }
 
