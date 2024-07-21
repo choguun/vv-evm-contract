@@ -19,6 +19,11 @@ const config: HardhatUserConfig = {
   },
   networks: {
     ...getHardhatConfigNetworks(),
+    sepolia: {
+      url: `https://eth-sepolia.public.blastapi.io`,
+      accounts: [process.env.PRIVATE_KEY as string],
+      gasPrice: 3500000,
+    }
   },
   etherscan: {
   },

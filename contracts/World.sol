@@ -9,6 +9,7 @@ import {Token} from "./Token.sol";
 import {Item} from "./Item.sol";
 import {Raffle} from "./Raffle.sol";
 import {CraftSystem} from "./CraftSystem.sol";
+import {IERC4626} from "./IERC4626.sol";
 // import {ERC6551Registry} from "./ERC6551Registry.sol";
 
 contract World is Raffle, Ownable, ReentrancyGuard {
@@ -19,6 +20,11 @@ contract World is Raffle, Ownable, ReentrancyGuard {
         CRAFT
     }
 
+    enum ExchangeType {
+        BUY,
+        SELL
+    }
+
     struct Player {
         uint256 tokenId;
         uint256 score;
@@ -26,6 +32,7 @@ contract World is Raffle, Ownable, ReentrancyGuard {
         uint256 streak;
         uint256 lastRaffle;
         uint256 lastDoCraft;
+        uint256 ticket;
     }
     struct Quest {
         string name;
@@ -47,16 +54,18 @@ contract World is Raffle, Ownable, ReentrancyGuard {
     address public craft; // Craft System
     address public registry; // Registry
     address public account; // Token Bound Account
+    address public vault; // Vault
     uint256 public chainId;
     // External Contract
 
     // Game data
-    mapping(address => Player) private players;
+    mapping(address => Player) public players;
     mapping(uint256 => Quest) public quests;
     mapping(uint256 => GameItem) public gameItems;
 
     uint256 public questCount = 0;
     uint256 public itemCount = 0;
+    uint256 public marketfees = 20; // 20%
 
     uint256 public constant CHECK_IN_WINDOW = 24 hours;
     uint256 public constant DENOMINATOR = 10 ** 18;
@@ -102,6 +111,10 @@ contract World is Raffle, Ownable, ReentrancyGuard {
     );
     event CheckedIn(address indexed user, uint256 timestamp, uint256 newStreak);
     event RaffleResulted(address indexed user, uint256 timestamp, bool result);
+    event MarketFeesUpdated(
+        uint256 fees,
+        uint256 timestamp
+    );
     // Events
 
     // Modifiers
@@ -122,27 +135,39 @@ contract World is Raffle, Ownable, ReentrancyGuard {
     // constructor
     constructor(address _initialOwner) {}
 
-    // Player functions
+     // Player functions
     function createPlayer(uint256 _tokenId) external onlyUser onlyTokenOwner(_tokenId) {
-        players[_msgSender()] = Player(_tokenId, 0, 0, 0, 0, 0);
+        players[_msgSender()] = Player(_tokenId, 0, 0, 0, 0, 0, 0);
         emit PlayerCreated(_tokenId, _msgSender(), block.timestamp);
     }
 
-    function getPlayer() external view returns (Player memory) {
-        return players[_msgSender()];
-    }
-
-    function _addPlayerScore(uint256 _score) internal {
-        players[_msgSender()].score += _score;
+    function getPlayer(address _player) external view returns (Player memory) {
+        return players[_player];
     }
     // Player functions
 
+    // Market functions
+    function setMarketFees(uint256 fees) external onlyOwner {
+        require(fees > 0 && fees <= 100, "feed require between 0 - 100");
+        marketfees = fees;
+        emit MarketFeesUpdated(fees, block.timestamp);
+    }
+    // Market functions
+
     // Exchange functions
-    function exchangeItem(uint256 _tokenId, uint256 _itemId) external onlyUser onlyTokenOwner(_tokenId) nonReentrant {
-        // address tokenBoundAccount = _getTokenBoundAccount(_tokenId);
+    function exchangeItem(uint256 _tokenId, uint256 _itemId, ExchangeType exchangeType) external onlyUser onlyTokenOwner(_tokenId) nonReentrant {
         uint256 price = _getItemPrice(_itemId);
-        Token(token).burn(_msgSender(), price);
-        Item(item).mint(_msgSender(), _itemId, 1);
+
+        if(exchangeType == ExchangeType.BUY) {
+            require(Token(token).balanceOf(_msgSender()) >= price, "Cube Token is not enough to buy item");
+            Token(token).approve(address(this), price);
+            Token(token).transferFrom(_msgSender(), address(this), price);
+            Item(item).mint(_msgSender(), _itemId, 1);
+        } else {
+            require(Item(item).balanceOf(_msgSender(), _itemId) > 0, "Item Token is not enough to sell item");
+            Item(item).burn(_msgSender(), _itemId, 1);
+            Token(token).transfer(_msgSender(), (price * (100 - marketfees)) / 100);
+        }
     }
 
     function _getItemPrice(uint256 _itemId) internal view returns (uint256) {
@@ -168,14 +193,26 @@ contract World is Raffle, Ownable, ReentrancyGuard {
         }
     }
 
+    function doDeposit(uint256 _tokenId, uint256 _amount) external onlyUser onlyTokenOwner(_tokenId) {
+        require(_amount > 0, "Amount must be greater than 0");
+        require(Token(token).transferFrom(_msgSender(), address(this), _amount), "Transfer failed");
+        // Approve the vault to spend the asset on behalf of the World contract
+        require(Token(token).approve(address(vault), _amount), "Approve failed");
+        // Token(token).approve(vault, _amount);
+        uint256 share = IERC4626(vault).deposit(_amount, _msgSender());
+
+        if(share > 0) {
+            players[_msgSender()].ticket += 1;
+        }
+    }
+
     function _distributeRewardandScore(uint256 _tokenId, uint256 _reward) internal {
         // address tokenBoundAccount = _getTokenBoundAccount(_tokenId);
         Token(token).mint(_msgSender(), _reward * DENOMINATOR);
-        _addPlayerScore(_reward);
     }
 
     function _dailyCheckIn(uint256 _tokenId, uint256 _reward) internal {
-        Player storage userCheckInInfo = players[msg.sender];
+        Player storage userCheckInInfo = players[_msgSender()];
         require(block.timestamp >= userCheckInInfo.lastCheckIn + CHECK_IN_WINDOW, "Too early for next check-in");
 
         if (block.timestamp > userCheckInInfo.lastCheckIn + (CHECK_IN_WINDOW * 2)) {
@@ -189,14 +226,19 @@ contract World is Raffle, Ownable, ReentrancyGuard {
         _distributeRewardandScore(_tokenId, _reward);
 
         userCheckInInfo.lastCheckIn = block.timestamp;
-        emit CheckedIn(msg.sender, block.timestamp, userCheckInInfo.streak);
+        emit CheckedIn(_msgSender(), block.timestamp, userCheckInInfo.streak);
     }
 
     function _dailyPlayMinigame(uint256 _tokenId, uint256 _reward, uint256 _guess) internal {
-       uint256 r = _enterRaffle();
+        require(players[_msgSender()].ticket > 0 , "No ticket is avaliabe");
+        uint256 r = _enterRaffle();
+        players[_msgSender()].ticket = players[_msgSender()].ticket - 1;
+
         if(r == _guess) {
             _distributeRewardandScore(_tokenId, _reward);
-            emit RaffleResulted(msg.sender, block.timestamp, true);
+            emit RaffleResulted(_msgSender(), block.timestamp, true);
+        } else {
+            emit RaffleResulted(_msgSender(), block.timestamp, false);
         }
     }
 
@@ -209,7 +251,7 @@ contract World is Raffle, Ownable, ReentrancyGuard {
     }
 
     function checkCurrentQuestStatus() public view returns (bool isCheckIn, bool isPlayMinigame, bool lastDoCraft){
-        Player storage userCheckInInfo = players[msg.sender];
+        Player storage userCheckInInfo = players[_msgSender()];
         isCheckIn = false;
         isPlayMinigame = false;
         lastDoCraft = false;
@@ -258,6 +300,10 @@ contract World is Raffle, Ownable, ReentrancyGuard {
 
     function setCraft(address _craft) public onlyOwner {
         craft = _craft;
+    }
+
+    function setVault(address _vault) public onlyOwner {
+        vault = _vault;
     }
 
     function configTokenBound(address _registry, address _account, uint256 _chainId) public onlyOwner {

@@ -1,7 +1,7 @@
 
 async function main5() {
     const Contract = await ethers.getContractFactory("World");
-    const deployedContract = await Contract.attach('0x13211c88c8270b4f3e57d1cc12b3a92bc4d80a4b');
+    const deployedContract = await Contract.attach('0x7ebba474c0d83bb3fb5955b221640abaf825e125');
   
     // createItem(uint256 _itemId, string memory _name, string memory _description, uint256 _price)
     const tx1 = await deployedContract.createItem(0, "PICKAXE", "PICKAXE", 100);

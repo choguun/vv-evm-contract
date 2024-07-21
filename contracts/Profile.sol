@@ -19,11 +19,23 @@ contract Profile is ERC721, ZetaInteractor, ZetaReceiver {
     IERC20 internal immutable _zetaToken;
     uint256 private _tokenIds;
 
+    // Mapping from owner to list of owned token IDs
+    mapping(address => uint256[]) private _ownedTokens;
+
+    // Mapping from token ID to index of the owner tokens list
+    mapping(uint256 => uint256) private _ownedTokensIndex;
+
+    // Array with all token ids, used for enumeration
+    uint256[] private _allTokens;
+
+    // Mapping from token id to position in the allTokens array
+    mapping(uint256 => uint256) private _allTokensIndex;
+
     constructor(
         address initialOwner,  
-        address connectorAddress,
-        address zetaTokenAddress,
-        address zetaConsumerAddress,
+        address connectorAddress, // 0x3963341dad121c9CD33046089395D66eBF20Fb03
+        address zetaTokenAddress, // 0x0000c304D2934c00Db1d51995b9f6996AffD17c0
+        address zetaConsumerAddress, // 0x301ED39771d8f1dD0b05F8C2D4327ce9C426E783
         bool useEven
       ) 
       ERC721("Profile", "Profile") 
@@ -108,5 +120,73 @@ contract Profile is ERC721, ZetaInteractor, ZetaReceiver {
 
     function withdraw() public onlyOwner {
         payable(msg.sender).transfer(address(this).balance);
+    }
+
+    function getTokenIdsOfOwner(address owner) public view returns (uint256[] memory) {
+        return _ownedTokens[owner];
+    }
+
+    function _addTokenToOwnerEnumeration(address to, uint256 tokenId) private {
+        _ownedTokens[to].push(tokenId);
+        _ownedTokensIndex[tokenId] = _ownedTokens[to].length - 1;
+    }
+
+    function _addTokenToAllTokensEnumeration(uint256 tokenId) private {
+        _allTokensIndex[tokenId] = _allTokens.length;
+        _allTokens.push(tokenId);
+    }
+
+    // Optional: Implement token transfer and burn functions to maintain the enumeration
+    function _removeTokenFromOwnerEnumeration(address from, uint256 tokenId) private {
+        // To prevent a gap in from's tokens array, we replace the token to be removed with the last one in the array
+        uint256 lastTokenIndex = _ownedTokens[from].length - 1;
+        uint256 tokenIndex = _ownedTokensIndex[tokenId];
+
+        if (tokenIndex != lastTokenIndex) {
+            uint256 lastTokenId = _ownedTokens[from][lastTokenIndex];
+
+            _ownedTokens[from][tokenIndex] = lastTokenId; // Move the last token to the slot of the to-be-removed token
+            _ownedTokensIndex[lastTokenId] = tokenIndex; // Update the moved token's index
+        }
+
+        // This also deletes the contents at the last position of the array
+        _ownedTokens[from].pop();
+
+        // Update the index for the removed token
+        delete _ownedTokensIndex[tokenId];
+    }
+
+    function _removeTokenFromAllTokensEnumeration(uint256 tokenId) private {
+        // To prevent a gap in the tokens array, we replace the token to be removed with the last one in the array
+        uint256 lastTokenIndex = _allTokens.length - 1;
+        uint256 tokenIndex = _allTokensIndex[tokenId];
+
+        if (tokenIndex != lastTokenIndex) {
+            uint256 lastTokenId = _allTokens[lastTokenIndex];
+
+            _allTokens[tokenIndex] = lastTokenId; // Move the last token to the slot of the to-be-removed token
+            _allTokensIndex[lastTokenId] = tokenIndex; // Update the moved token's index
+        }
+
+        // This also deletes the contents at the last position of the array
+        _allTokens.pop();
+
+        // Update the index for the removed token
+        delete _allTokensIndex[tokenId];
+    }
+
+    function _beforeTokenTransfer(address from, address to, uint256 tokenId, uint256 batchSize) internal virtual override {
+        super._beforeTokenTransfer(from, to, tokenId, batchSize);
+
+        if (from != address(0)) {
+            _removeTokenFromOwnerEnumeration(from, tokenId);
+        }
+
+        if (to != address(0)) {
+            _addTokenToOwnerEnumeration(to, tokenId);
+        } else {
+            // If the token is being burned, remove it from the global enumeration
+            _removeTokenFromAllTokensEnumeration(tokenId);
+        }
     }
 }
