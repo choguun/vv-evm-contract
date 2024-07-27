@@ -6,18 +6,64 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "./IERC4626.sol";
 
-contract ERC4626Vault is ERC20, IERC4626, Ownable {
+import "@zetachain/protocol-contracts/contracts/zevm/SystemContract.sol";
+import "@zetachain/protocol-contracts/contracts/zevm/interfaces/zContract.sol";
+import "@zetachain/toolkit/contracts/BytesHelperLib.sol";
+import "@zetachain/toolkit/contracts/OnlySystem.sol";
+
+
+contract ERC4626Vault is ERC20, IERC4626, Ownable, zContract, OnlySystem {
     using SafeERC20 for IERC20;
+
+    SystemContract public systemContract;
+    uint256 public immutable chainID;
+    uint256 constant BITCOIN = 18332;
 
     IERC20 private _asset;
 
-    constructor(IERC20 asset)
-        ERC20("Raffle Vault", "Raffle")
+    error WrongChain(uint256 chainID);
+    error UnknownAction(uint8 action);
+    error Overflow();
+    error Underflow();
+    error WrongAmount();
+    error NotAuthorized();
+    error NoRewardsToClaim();
+
+    constructor(
+        IERC20 asset, 
+        uint256 chainID_,
+        address systemContractAddress
+        ) ERC20("Raffle Vault", "Raffle")
     {
         _asset = asset;
+        systemContract = SystemContract(systemContractAddress);
+        chainID = chainID_;
     }
 
-    function deposit(uint256 assets, address receiver) external override returns (uint256 shares) {
+      function onCrossChainCall(
+        zContext calldata context,
+        address zrc20,
+        uint256 amount,
+        bytes calldata message
+    ) external virtual override onlySystem(systemContract) {
+        if (chainID != context.chainID) {
+            revert WrongChain(context.chainID);
+        }
+
+        uint8 action = chainID == BITCOIN
+            ? uint8(message[0])
+            : abi.decode(message, (uint8));
+        address sender = abi.decode(context.origin, (address));
+        if (action == 1) {
+            deposit(amount, sender);
+        } else if (action == 2) {
+            withdraw(amount, sender, sender);
+        } else {
+            revert UnknownAction(action);
+        }
+    }
+
+    function deposit(uint256 assets, address receiver) public override returns (uint256 shares) {
         uint256 totalAssets = totalAssets();
         uint256 totalShares = totalSupply();
         if (totalShares == 0) {
@@ -32,7 +78,7 @@ contract ERC4626Vault is ERC20, IERC4626, Ownable {
         return shares;
     }
 
-    function withdraw(uint256 assets, address receiver, address owner) external override returns (uint256 shares) {
+    function withdraw(uint256 assets, address receiver, address owner) public override returns (uint256 shares) {
         uint256 totalAssets = totalAssets();
         uint256 totalShares = totalSupply();
 
